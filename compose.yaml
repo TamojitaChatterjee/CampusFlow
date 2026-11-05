@@ -1,0 +1,35 @@
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: campusflow-db
+    environment:
+      POSTGRES_DB: campusflow
+      POSTGRES_USER: campusflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-campusflow_local}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - campusflow-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusflow -d campusflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/campusflow
+      DB_USERNAME: campusflow
+      DB_PASSWORD: ${DB_PASSWORD:-campusflow_local}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  campusflow-data:
