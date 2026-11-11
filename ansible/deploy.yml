@@ -8,6 +8,7 @@
   vars:
     image_name: ghcr.io/tamojitachatterjee/campusflow
     image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
+    manifest_path: "{{ playbook_dir }}/../k8s/campusflow.yaml"
 
   tasks:
     - name: Verify that an image tag was supplied
@@ -16,13 +17,24 @@
           - image_tag | length > 0
         fail_msg: "IMAGE_TAG must contain the Git commit SHA."
 
+    - name: Verify that the Kubernetes manifest exists
+      ansible.builtin.stat:
+        path: "{{ manifest_path }}"
+      register: manifest_file
+
+    - name: Stop if the Kubernetes manifest is missing
+      ansible.builtin.assert:
+        that:
+          - manifest_file.stat.exists
+        fail_msg: "CampusFlow Kubernetes manifest was not found."
+
     - name: Apply CampusFlow Kubernetes resources
       ansible.builtin.command:
         argv:
           - kubectl
           - apply
           - -f
-          - k8s/campusflow.yaml
+          - "{{ manifest_path }}"
 
     - name: Update CampusFlow deployment image
       ansible.builtin.command:
