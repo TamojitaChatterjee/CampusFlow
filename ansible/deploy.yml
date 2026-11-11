@@ -1,0 +1,51 @@
+
+---
+- name: Deploy CampusFlow to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    image_name: ghcr.io/tamojitachatterjee/campusflow
+    image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
+
+  tasks:
+    - name: Verify that an image tag was supplied
+      ansible.builtin.assert:
+        that:
+          - image_tag | length > 0
+        fail_msg: "IMAGE_TAG must contain the Git commit SHA."
+
+    - name: Apply CampusFlow Kubernetes resources
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - apply
+          - -f
+          - k8s/campusflow.yaml
+
+    - name: Update CampusFlow deployment image
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - set
+          - image
+          - deployment/campusflow
+          - "campusflow={{ image_name }}:{{ image_tag }}"
+
+    - name: Wait for CampusFlow rollout
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - rollout
+          - status
+          - deployment/campusflow
+          - --timeout=300s
+
+    - name: Verify CampusFlow deployment
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - deployment
+          - campusflow
